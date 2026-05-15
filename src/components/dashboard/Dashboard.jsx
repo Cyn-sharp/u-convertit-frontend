@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Profile from './Profile';
 import QuizHistory from './QuizHistory';
@@ -10,6 +10,7 @@ import ConvertPDF from './tools/ConvertPDF';
 import { logout } from '../../services/authService';
 import '../../styles/dashboard.css';
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const tools = [
   {
@@ -67,7 +68,6 @@ const tools = [
 const PROFILE_ID = 'profile';
 const QUIZ_HISTORY_ID = 'quizhistory';
 
-// Map tool IDs to their components
 const toolComponents = {
   paraphraser: <Paraphraser />,
   humanizer: <Humanizer />,
@@ -82,6 +82,48 @@ function Dashboard() {
   const navigate = useNavigate();
   const [activeTool, setActiveTool] = useState('paraphraser');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [userAvatar, setUserAvatar] = useState(null);
+  const [userName, setUserName] = useState('');
+  const dropdownItemStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    width: '100%',
+    padding: '10px 12px',
+    border: 'none',
+    background: 'transparent',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#374151',
+    textAlign: 'left',
+    transition: 'background 0.15s',
+  };
+
+  // ── Fetch user profile (for avatar) on mount ──
+  useEffect(() => {
+    async function fetchUserAvatar() {
+      try {
+        const { supabase } = await import('../../lib/supabase');
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) return;
+
+        const res = await fetch(`${API_BASE}/api/profile/${user.id}`);
+        const data = await res.json();
+
+        if (data.success) {
+          setUserAvatar(data.profile.avatar_url || null);
+          setUserName(data.profile.full_name || user.email);
+        }
+      } catch (err) {
+        console.error('Failed to fetch user avatar:', err);
+      }
+    }
+
+    fetchUserAvatar();
+  }, [activeTool]); // refetch when switching to/from profile (in case avatar changed)
 
   const isProfile = activeTool === PROFILE_ID;
   const isQuizHistory = activeTool === QUIZ_HISTORY_ID;
@@ -95,7 +137,7 @@ function Dashboard() {
   const handleLogout = async (e) => {
     e.preventDefault();
     
-    await logout();   // Sign out from Supabase
+    await logout();
     sessionStorage.clear();
     navigate('/login');
   };
@@ -118,33 +160,178 @@ function Dashboard() {
           <button
             className="user-btn"
             onClick={() => setShowDropdown(prev => !prev)}
+            title={userName}
+            style={{
+              padding: '4px',
+              borderRadius: '50%',
+              overflow: 'hidden',
+              width: '40px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#f3f4f6',
+              border: '2px solid #e5e7eb',
+              cursor: 'pointer',
+              transition: 'border-color 0.2s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = '#8B1515'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = '#e5e7eb'}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} width={28} height={28}>
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
-            </svg>
+            {userAvatar ? (
+              <img
+                src={userAvatar}
+                alt={userName}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                }}
+              />
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} width={24} height={24}>
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
+              </svg>
+            )}
           </button>
           {showDropdown && (
-            <div className="dropdown">
-              <button
-                className="dropdown-item"
-                onClick={() => { setActiveTool(PROFILE_ID); setShowDropdown(false); }}
+            <>
+              {/* Backdrop to close dropdown when clicking outside */}
+              <div
+                onClick={() => setShowDropdown(false)}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  zIndex: 99,
+                }}
+              />
+
+              <div
+                className="dropdown"
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  minWidth: '240px',
+                  background: 'white',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+                  overflow: 'hidden',
+                  zIndex: 100,
+                  animation: 'dropdownFade 0.15s ease-out',
+                  border: '1px solid #e5e7eb',
+                }}
               >
-                Profile
-              </button>
-              <button
-                className="dropdown-item"
-                onClick={() => { setActiveTool(QUIZ_HISTORY_ID); setShowDropdown(false); }}
-              >
-                Quiz History
-              </button>
-              <button
-                className="dropdown-item logout"
-                onClick={handleLogout}
-              >
-                Log Out
-              </button>
-            </div>
+                {/* User Info Header */}
+                <div style={{
+                  padding: '16px',
+                  background: 'linear-gradient(135deg, #8B1515 0%, #5a0d0d 100%)',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                }}>
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                  }}>
+                    {userAvatar ? (
+                      <img
+                        src={userAvatar}
+                        alt={userName}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} width={22} height={22}>
+                        <circle cx="12" cy="8" r="4"/>
+                        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round"/>
+                      </svg>
+                    )}
+                  </div>
+                  <div style={{ overflow: 'hidden' }}>
+                    <p style={{
+                      margin: 0,
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}>
+                      {userName || 'User'}
+                    </p>
+                    <p style={{
+                      margin: 0,
+                      fontSize: '12px',
+                      opacity: 0.9,
+                    }}>
+                      View account
+                    </p>
+                  </div>
+                </div>
+
+                {/* Menu Items */}
+                <div style={{ padding: '6px' }}>
+                  <button
+                    style={dropdownItemStyle}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    onClick={() => { setActiveTool(PROFILE_ID); setShowDropdown(false); }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} width={18} height={18}>
+                      <circle cx="12" cy="8" r="4"/>
+                      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round"/>
+                    </svg>
+                    <span>My Profile</span>
+                  </button>
+
+                  <button
+                    style={dropdownItemStyle}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    onClick={() => { setActiveTool(QUIZ_HISTORY_ID); setShowDropdown(false); }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} width={18} height={18}>
+                      <path d="M12 8v4l3 3" strokeLinecap="round" strokeLinejoin="round"/>
+                      <circle cx="12" cy="12" r="10"/>
+                    </svg>
+                    <span>Quiz History</span>
+                  </button>
+
+                  {/* Divider */}
+                  <div style={{
+                    height: '1px',
+                    background: '#e5e7eb',
+                    margin: '6px 0',
+                  }} />
+
+                  <button
+                    style={{
+                      ...dropdownItemStyle,
+                      color: '#dc2626',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    onClick={handleLogout}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} width={18} height={18}>
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" strokeLinecap="round" strokeLinejoin="round"/>
+                      <polyline points="16 17 21 12 16 7" strokeLinecap="round" strokeLinejoin="round"/>
+                      <line x1="21" y1="12" x2="9" y2="12" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span>Log Out</span>
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </header>
