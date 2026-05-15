@@ -4,6 +4,7 @@ import '../../styles/admin.css';
 
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
 /* ── Tool config ── */
 const TOOL_CONFIG = {
   paraphraser: { name: 'Paraphraser', color: '#8B0E0E' },
