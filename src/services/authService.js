@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase';
 
-
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // ─────────────────────────────────────────
@@ -86,7 +85,6 @@ export async function resendOtp(email) {
 // ─────────────────────────────────────────
 // LOGIN — Sign in with email/password
 // ─────────────────────────────────────────
-
 export async function login({ email, password }) {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
