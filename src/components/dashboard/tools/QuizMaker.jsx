@@ -11,13 +11,73 @@ function SetupScreen({ onGenerate }) {
   const [content, setContent] = useState("");
   const [count, setCount] = useState(5);
   const [loading, setLoading] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
   const [error, setError] = useState("");
+  const fileInputRef = useRef(null);
 
   const handlePaste = async () => {
     try {
       const text = await navigator.clipboard.readText();
       setContent(text);
     } catch {}
+  };
+
+  // Handle file upload for OCR
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const allowedTypes = [
+      'application/pdf',
+      'image/png', 'image/jpeg', 'image/jpg', 
+      'image/webp', 'image/gif'
+    ];
+    
+    if (!allowedTypes.includes(file.type)) {
+      setError('❌ Unsupported format. Use PDF, PNG, JPG, or WEBP.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('❌ File too large. Max 5MB.');
+      return;
+    }
+
+    setOcrLoading(true);
+    setError("");
+
+    try {
+      const { supabase } = await import('../../../lib/supabase');
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const formData = new FormData();
+      formData.append('file', file);
+      if (user?.id) formData.append('user_id', user.id);
+
+      const res = await fetch(`${API_BASE}/api/ocr`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.detail || 'OCR failed');
+      }
+
+      if (data.text && data.text !== 'No text found in image.') {
+        setContent(prev => prev ? prev + '\n\n' + data.text : data.text);
+      } else {
+        setError('⚠️ No text found in this file.');
+      }
+      
+    } catch (err) {
+      console.error(err);
+      setError(`❌ ${err.message}`);
+    } finally {
+      setOcrLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const handleGenerate = async () => {
@@ -64,9 +124,38 @@ function SetupScreen({ onGenerate }) {
             </svg>
             Quiz Maker
           </span>
-          <button className="qm-btn-secondary" onClick={handlePaste}>
-            Paste Notes
-          </button>
+          
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button className="qm-btn-secondary" onClick={handlePaste}>
+              📋 Paste Notes
+            </button>
+            
+            <button 
+              className="qm-btn-secondary" 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={ocrLoading}
+              style={{ 
+                opacity: ocrLoading ? 0.7 : 1,
+                cursor: ocrLoading ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {ocrLoading ? (
+                <>
+                  <span className="qm-loader" /> Scanning...
+                </>
+              ) : (
+                <>📄 Upload File</>
+              )}
+            </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.gif"
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+            />
+          </div>
         </div>
 
         <div className="qm-body">
@@ -135,7 +224,7 @@ function SetupScreen({ onGenerate }) {
 
           {error && (
             <div style={{ color: '#dc2626', fontSize: '13px', marginTop: '8px' }}>
-              ❌ {error}
+              {error}
             </div>
           )}
         </div>
