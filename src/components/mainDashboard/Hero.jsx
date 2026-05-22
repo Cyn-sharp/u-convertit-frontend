@@ -25,7 +25,7 @@ const Hero = () => {
               className="text-lg text-gray-500 mb-8 leading-relaxed"
               style={{ animation: 'fadeUp 0.7s ease both', animationDelay: '0.25s' }}
             >
-              Paraphrase, Convert, and Generate Quizzes in seconds. Built by Technologists, for Technologists.
+              Paraphrase, Convert, and Generate Quizzes in seconds. Built by Teknoys, for Teknoys.
             </p>
             <Link
               className="hero-cta inline-block bg-[#8B1515] text-white px-8 py-4 rounded-md font-bold text-sm uppercase tracking-wide hover:bg-red-800 shadow-lg shadow-red-900/20"
