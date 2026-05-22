@@ -47,6 +47,156 @@ const IconLogOut = () => (
   </svg>
 );
 
+// ── 🎨 SKELETON LOADING COMPONENTS ──
+function SkeletonBox({ width = '100%', height = '20px', borderRadius = '8px', style = {} }) {
+  return (
+    <div
+      style={{
+        width,
+        height,
+        borderRadius,
+        background: 'linear-gradient(90deg, #f0f0f0 0%, #e4e4e4 50%, #f0f0f0 100%)',
+        backgroundSize: '200% 100%',
+        animation: 'skeletonShimmer 1.5s ease-in-out infinite',
+        ...style,
+      }}
+    />
+  );
+}
+
+function ProfileSkeleton() {
+  return (
+    <div className="pf-container">
+      <div className="pf-wrapper">
+
+        {/* ── Profile Header Skeleton ── */}
+        <div className="pf-card">
+          <div className="pf-avatar-section">
+            <SkeletonBox width="120px" height="120px" borderRadius="50%" />
+
+            <div className="pf-avatar-info" style={{ flex: 1 }}>
+              <SkeletonBox width="200px" height="24px" style={{ marginBottom: '10px' }} />
+              <SkeletonBox width="160px" height="16px" style={{ marginBottom: '10px' }} />
+              <SkeletonBox width="80px" height="24px" borderRadius="12px" style={{ marginBottom: '8px' }} />
+              <SkeletonBox width="180px" height="14px" style={{ marginBottom: '14px' }} />
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <SkeletonBox width="140px" height="34px" borderRadius="8px" />
+                <SkeletonBox width="100px" height="34px" borderRadius="8px" />
+              </div>
+            </div>
+          </div>
+
+          <div className="pf-card-body">
+            <div className="pf-form-row">
+              <div className="pf-field" style={{ flex: 1 }}>
+                <SkeletonBox width="80px" height="14px" style={{ marginBottom: '6px' }} />
+                <SkeletonBox width="100%" height="40px" />
+              </div>
+              <div className="pf-field" style={{ flex: 1 }}>
+                <SkeletonBox width="100px" height="14px" style={{ marginBottom: '6px' }} />
+                <SkeletonBox width="100%" height="40px" />
+              </div>
+            </div>
+          </div>
+
+          <div className="pf-card-footer">
+            <SkeletonBox width="120px" height="36px" borderRadius="8px" />
+          </div>
+        </div>
+
+        {/* ── Stats Card Skeleton ── */}
+        <div className="pf-card">
+          <div className="pf-card-header">
+            <SkeletonBox width="160px" height="20px" />
+          </div>
+          <div className="pf-card-body">
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+              gap: '1rem'
+            }}>
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} style={{
+                  padding: '1rem',
+                  background: '#f8f9fa',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}>
+                  <SkeletonBox width="40px" height="32px" />
+                  <SkeletonBox width="80px" height="12px" />
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: '1rem' }}>
+              <SkeletonBox width="160px" height="14px" style={{ marginBottom: '10px' }} />
+              {[1, 2, 3].map(i => (
+                <div key={i} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: '6px 12px',
+                  background: '#f8f9fa',
+                  borderRadius: '6px',
+                  marginBottom: '4px',
+                }}>
+                  <SkeletonBox width="100px" height="14px" />
+                  <SkeletonBox width="60px" height="14px" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Password Card Skeleton ── */}
+        <div className="pf-card">
+          <div className="pf-card-header">
+            <SkeletonBox width="180px" height="20px" />
+          </div>
+          <div className="pf-card-body">
+            <div className="pf-field" style={{ marginBottom: '14px' }}>
+              <SkeletonBox width="120px" height="14px" style={{ marginBottom: '6px' }} />
+              <SkeletonBox width="100%" height="40px" />
+            </div>
+            <div className="pf-form-row">
+              <div className="pf-field" style={{ flex: 1 }}>
+                <SkeletonBox width="100px" height="14px" style={{ marginBottom: '6px' }} />
+                <SkeletonBox width="100%" height="40px" />
+              </div>
+              <div className="pf-field" style={{ flex: 1 }}>
+                <SkeletonBox width="140px" height="14px" style={{ marginBottom: '6px' }} />
+                <SkeletonBox width="100%" height="40px" />
+              </div>
+            </div>
+          </div>
+          <div className="pf-card-footer">
+            <SkeletonBox width="140px" height="36px" borderRadius="8px" />
+          </div>
+        </div>
+
+        {/* ── Sign Out Card Skeleton ── */}
+        <div className="pf-card">
+          <div className="pf-card-body" style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center' 
+          }}>
+            <div style={{ flex: 1 }}>
+              <SkeletonBox width="100px" height="16px" style={{ marginBottom: '6px' }} />
+              <SkeletonBox width="250px" height="13px" />
+            </div>
+            <SkeletonBox width="120px" height="36px" borderRadius="8px" />
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN PROFILE COMPONENT ──
 function Profile() {
   const navigate = useNavigate();
 
@@ -87,9 +237,12 @@ function Profile() {
 
   const fileInputRef = useRef(null);
 
-  // ── Fetch profile on mount ──
+  // ── Fetch profile on mount (with min 2.5s skeleton) ──
   useEffect(() => {
     async function fetchProfile() {
+      // ✅ Minimum skeleton display time (so it doesn't flash)
+      const minLoadTime = new Promise(resolve => setTimeout(resolve, 2500));
+
       try {
         const { supabase } = await import('../../lib/supabase');
         const { data: { user } } = await supabase.auth.getUser();
@@ -99,7 +252,12 @@ function Profile() {
           return;
         }
 
-        const res = await fetch(`${API_BASE}/api/profile/${user.id}`);
+        // ✅ Fetch profile AND wait for min time in parallel
+        const [res] = await Promise.all([
+          fetch(`${API_BASE}/api/profile/${user.id}`),
+          minLoadTime
+        ]);
+        
         const data = await res.json();
 
         if (data.success) {
@@ -115,6 +273,8 @@ function Profile() {
         }
       } catch (err) {
         console.error('Failed to fetch profile:', err);
+        // Still wait for min time even on error
+        await minLoadTime;
       } finally {
         setLoading(false);
       }
@@ -257,16 +417,9 @@ function Profile() {
     });
   };
 
+  // ✅ Show skeleton while loading
   if (loading) {
-    return (
-      <div className="pf-container">
-        <div className="pf-wrapper">
-          <div className="pf-card" style={{ textAlign: 'center', padding: '3rem' }}>
-            <span className="pf-loader" /> Loading profile...
-          </div>
-        </div>
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
   return (

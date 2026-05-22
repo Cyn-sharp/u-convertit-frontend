@@ -1,18 +1,52 @@
 import '../../../styles/dashboard.css';
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const LETTERS = ["A", "B", "C", "D"];
 
+const DIFFICULTIES = [
+  {
+    value: "easy",
+    label: "Easy",
+    description: "Key terms & definitions",
+    color: "#16a34a",
+    bg: "#f0fdf4",
+    border: "#bbf7d0",
+  },
+  {
+    value: "medium",
+    label: "Medium",
+    description: "Concepts & relationships",
+    color: "#d97706",
+    bg: "#fffbeb",
+    border: "#fde68a",
+  },
+  {
+    value: "hard",
+    label: "Hard",
+    description: "Analysis & evaluation",
+    color: "#dc2626",
+    bg: "#fef2f2",
+    border: "#fecaca",
+  },
+];
+
+const DIFF_STYLES = {
+  easy:   { color: "#16a34a", bg: "#f0fdf4", label: "Easy"   },
+  medium: { color: "#d97706", bg: "#fffbeb", label: "Medium" },
+  hard:   { color: "#dc2626", bg: "#fef2f2", label: "Hard"   },
+};
+
 // ── SETUP SCREEN ──
 function SetupScreen({ onGenerate }) {
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [count, setCount] = useState(5);
-  const [loading, setLoading] = useState(false);
+  const [title, setTitle]         = useState("");
+  const [content, setContent]     = useState("");
+  const [count, setCount]         = useState(5);
+  const [difficulty, setDifficulty] = useState("medium"); // ← no longer hardcoded
+  const [loading, setLoading]     = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError]         = useState("");
   const fileInputRef = useRef(null);
 
   const handlePaste = async () => {
@@ -22,17 +56,16 @@ function SetupScreen({ onGenerate }) {
     } catch {}
   };
 
-  // Handle file upload for OCR
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     const allowedTypes = [
       'application/pdf',
-      'image/png', 'image/jpeg', 'image/jpg', 
-      'image/webp', 'image/gif'
+      'image/png', 'image/jpeg', 'image/jpg',
+      'image/webp', 'image/gif',
     ];
-    
+
     if (!allowedTypes.includes(file.type)) {
       setError('❌ Unsupported format. Use PDF, PNG, JPG, or WEBP.');
       return;
@@ -60,17 +93,13 @@ function SetupScreen({ onGenerate }) {
       });
 
       const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.detail || 'OCR failed');
-      }
+      if (!res.ok) throw new Error(data.detail || 'OCR failed');
 
       if (data.text && data.text !== 'No text found in image.') {
         setContent(prev => prev ? prev + '\n\n' + data.text : data.text);
       } else {
         setError('⚠️ No text found in this file.');
       }
-      
     } catch (err) {
       console.error(err);
       setError(`❌ ${err.message}`);
@@ -96,15 +125,16 @@ function SetupScreen({ onGenerate }) {
           content,
           count,
           user_id: user?.id || null,
-          title: title.trim() || null, 
-          difficulty: "medium",
+          title: title.trim() || null,
+          difficulty, // ← now sends whatever the user picked
         }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Failed to generate quiz");
 
-      onGenerate(data.questions, data.quiz_id);
+      // pass difficulty back up so QuizScreen + ResultsScreen can show the badge
+      onGenerate(data.questions, data.quiz_id, data.difficulty || difficulty);
     } catch (err) {
       console.error(err);
       setError(err.message);
@@ -116,33 +146,40 @@ function SetupScreen({ onGenerate }) {
   return (
     <div className="qm-container">
       <div className="qm-panel">
+
+        {/* ── HEADER ── */}
         <div className="qm-header">
           <span className="qm-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} width={18} height={18}>
+            <svg
+              viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth={1.8}
+              width={18} height={18}
+            >
               <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <path d="M9 9h.01M9 12h.01M9 15h.01M13 9h3M13 12h3M13 15h3" strokeLinecap="round"/>
+              <path
+                d="M9 9h.01M9 12h.01M9 15h.01M13 9h3M13 12h3M13 15h3"
+                strokeLinecap="round"
+              />
             </svg>
             Quiz Maker
           </span>
-          
+
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button className="qm-btn-secondary" onClick={handlePaste}>
               📋 Paste Notes
             </button>
-            
-            <button 
-              className="qm-btn-secondary" 
+
+            <button
+              className="qm-btn-secondary"
               onClick={() => fileInputRef.current?.click()}
               disabled={ocrLoading}
-              style={{ 
+              style={{
                 opacity: ocrLoading ? 0.7 : 1,
-                cursor: ocrLoading ? 'not-allowed' : 'pointer'
+                cursor: ocrLoading ? 'not-allowed' : 'pointer',
               }}
             >
               {ocrLoading ? (
-                <>
-                  <span className="qm-loader" /> Scanning...
-                </>
+                <><span className="qm-loader" /> Scanning...</>
               ) : (
                 <>📄 Upload File</>
               )}
@@ -158,10 +195,16 @@ function SetupScreen({ onGenerate }) {
           </div>
         </div>
 
+        {/* ── BODY ── */}
         <div className="qm-body">
+
+          {/* Title */}
           <div>
             <label className="qm-label" style={{ display: 'block', marginBottom: '6px' }}>
-              Quiz Title <span style={{ color: '#888', fontWeight: 'normal', fontSize: '12px' }}>(Optional)</span>
+              Quiz Title{' '}
+              <span style={{ color: '#888', fontWeight: 'normal', fontSize: '12px' }}>
+                (Optional)
+              </span>
             </label>
             <input
               type="text"
@@ -177,13 +220,14 @@ function SetupScreen({ onGenerate }) {
                 marginBottom: '16px',
                 outline: 'none',
                 boxSizing: 'border-box',
-                transition: 'border-color 0.2s'
+                transition: 'border-color 0.2s',
               }}
-              onFocus={(e) => e.target.style.borderColor = '#2563eb'}
-              onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+              onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+              onBlur={(e)  => (e.target.style.borderColor = '#d1d5db')}
             />
           </div>
 
+          {/* Content textarea */}
           <textarea
             className="qm-textarea"
             placeholder="Paste your notes, textbook content, or study material here…"
@@ -191,6 +235,46 @@ function SetupScreen({ onGenerate }) {
             onChange={(e) => setContent(e.target.value)}
           />
 
+          {/* ── DIFFICULTY SELECTOR ── */}
+          <div style={{ marginBottom: '16px' }}>
+            <label className="qm-label" style={{ display: 'block', marginBottom: '8px' }}>
+              Difficulty
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              {DIFFICULTIES.map((d) => (
+                <button
+                  key={d.value}
+                  onClick={() => setDifficulty(d.value)}
+                  style={{
+                    padding: '10px 8px',
+                    borderRadius: '8px',
+                    border: `2px solid ${difficulty === d.value ? d.color : '#e5e7eb'}`,
+                    background: difficulty === d.value ? d.bg : '#fff',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{
+                    fontWeight: '600',
+                    fontSize: '13px',
+                    color: difficulty === d.value ? d.color : '#374151',
+                  }}>
+                    {d.label}
+                  </div>
+                  <div style={{
+                    fontSize: '11px',
+                    color: difficulty === d.value ? d.color : '#9ca3af',
+                    marginTop: '2px',
+                  }}>
+                    {d.description}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Count + Generate */}
           <div className="qm-row">
             <div>
               <label className="qm-label">Number of questions</label>
@@ -212,10 +296,7 @@ function SetupScreen({ onGenerate }) {
               disabled={!content.trim() || loading}
             >
               {loading ? (
-                <>
-                  <span className="qm-loader" />
-                  Generating…
-                </>
+                <><span className="qm-loader" /> Generating…</>
               ) : (
                 "Generate Quiz →"
               )}
@@ -229,26 +310,30 @@ function SetupScreen({ onGenerate }) {
           )}
         </div>
 
+        {/* ── FOOTER ── */}
         <div className="qm-footer">
           <span className="qm-status">
-            {content.trim() ? `${content.length.toLocaleString()} characters · Ready` : "Enter content to begin"}
+            {content.trim()
+              ? `${content.length.toLocaleString()} characters · Ready`
+              : "Enter content to begin"}
           </span>
         </div>
+
       </div>
     </div>
   );
 }
 
 // ── QUIZ SCREEN ──
-function QuizScreen({ questions, onFinish }) {
+function QuizScreen({ questions, difficulty, onFinish }) {
   const total = questions.length;
   const [current, setCurrent] = useState(0);
-  const [answers, setAnswers] = useState({});
+  const [answers, setAnswers]   = useState({});
   const [revealed, setRevealed] = useState({});
 
-  const q = questions[current];
+  const q          = questions[current];
   const isRevealed = !!revealed[current];
-  const chosen = answers[current] ?? null;
+  const chosen     = answers[current] ?? null;
 
   const handleChoose = (idx) => {
     if (isRevealed) return;
@@ -267,8 +352,8 @@ function QuizScreen({ questions, onFinish }) {
   const handleFinish = () => {
     const res = questions.map((q, i) => ({
       ...q,
-      chosen: answers[i] ?? null,
-      correct: answers[i] === q.correctIndex,
+      chosen:   answers[i] ?? null,
+      correct:  answers[i] === q.correctIndex,
       revealed: !!revealed[i],
     }));
     onFinish(res);
@@ -277,15 +362,19 @@ function QuizScreen({ questions, onFinish }) {
   const dotStatus = (i) => {
     if (i === current) return "qm-dot-current";
     if (!revealed[i]) return answers[i] !== undefined ? "qm-dot-skipped" : "";
-    return answers[i] === questions[i].correctIndex ? "qm-dot-correct" : "qm-dot-wrong";
+    return answers[i] === questions[i].correctIndex
+      ? "qm-dot-correct"
+      : "qm-dot-wrong";
   };
 
   const allRevealed = Object.keys(revealed).length === total;
-  const pct = Math.round(((current + 1) / total) * 100);
+  const pct         = Math.round(((current + 1) / total) * 100);
+  const diffStyle   = DIFF_STYLES[difficulty] || DIFF_STYLES.medium;
 
   return (
     <div className="qm-container">
       <div className="qm-panel">
+
         <div className="qm-progress-wrap">
           <div className="qm-progress-fill" style={{ width: `${pct}%` }} />
         </div>
@@ -295,16 +384,33 @@ function QuizScreen({ questions, onFinish }) {
             Question {current + 1}
             <span className="qm-counter-total"> / {total}</span>
           </span>
-          <div className="qm-nav-dots">
-            {questions.map((_, i) => (
-              <button
-                key={i}
-                className={`qm-dot ${dotStatus(i)}`}
-                onClick={() => setCurrent(i)}
-              >
-                {i + 1}
-              </button>
-            ))}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Difficulty badge */}
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '600',
+              padding: '2px 8px',
+              borderRadius: '999px',
+              color: diffStyle.color,
+              background: diffStyle.bg,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}>
+              {diffStyle.label}
+            </span>
+
+            <div className="qm-nav-dots">
+              {questions.map((_, i) => (
+                <button
+                  key={i}
+                  className={`qm-dot ${dotStatus(i)}`}
+                  onClick={() => setCurrent(i)}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -316,8 +422,8 @@ function QuizScreen({ questions, onFinish }) {
               let cls = "qm-choice";
               if (isRevealed) {
                 if (idx === q.correctIndex) cls += " correct";
-                else if (idx === chosen) cls += " wrong";
-                else cls += " dimmed";
+                else if (idx === chosen)    cls += " wrong";
+                else                        cls += " dimmed";
               } else if (chosen === idx) {
                 cls += " selected";
               }
@@ -336,7 +442,9 @@ function QuizScreen({ questions, onFinish }) {
           </div>
 
           {isRevealed && (
-            <div className={`qm-feedback ${chosen === q.correctIndex ? "qm-feedback-correct" : "qm-feedback-wrong"}`}>
+            <div className={`qm-feedback ${
+              chosen === q.correctIndex ? "qm-feedback-correct" : "qm-feedback-wrong"
+            }`}>
               {chosen === q.correctIndex
                 ? "✓ Correct!"
                 : `✗ Incorrect — correct answer: ${LETTERS[q.correctIndex]}: ${q.choices[q.correctIndex]}`}
@@ -352,96 +460,78 @@ function QuizScreen({ questions, onFinish }) {
           >
             ← Back
           </button>
+
           <div style={{ display: "flex", gap: "0.5rem" }}>
             {(allRevealed || (isRevealed && current === total - 1)) && (
               <button className="qm-btn-primary" onClick={handleFinish}>
                 See Results 🎯
               </button>
             )}
-            
             {!isRevealed ? (
-              <button className="qm-btn-primary" onClick={handleSubmit} disabled={chosen === null}>
+              <button
+                className="qm-btn-primary"
+                onClick={handleSubmit}
+                disabled={chosen === null}
+              >
                 Submit
               </button>
             ) : current < total - 1 ? (
-              <button className="qm-btn-primary" onClick={handleNext}>Next →</button>
+              <button className="qm-btn-primary" onClick={handleNext}>
+                Next →
+              </button>
             ) : null}
           </div>
         </div>
+
       </div>
     </div>
   );
 }
 
 // ── RESULTS SCREEN ──
-function ResultsScreen({ results, quizId, durationSeconds, onRetry, onNew }) {
+function ResultsScreen({ results, quizId, difficulty, durationSeconds, onRetry, onNew }) {
   const correct = results.filter((r) => r.revealed && r.correct).length;
-  const wrong = results.filter((r) => r.revealed && !r.correct).length;
+  const wrong   = results.filter((r) => r.revealed && !r.correct).length;
   const skipped = results.filter((r) => !r.revealed).length;
-  const total = results.length;
-  const pct = Math.round((correct / total) * 100);
-  const [saved, setSaved] = useState(false);
+  const total   = results.length;
+  const pct     = Math.round((correct / total) * 100);
+
+  const [saved, setSaved]   = useState(false);
   const [saving, setSaving] = useState(false);
-  const saveAttempted = useRef(false);
+  const saveAttempted       = useRef(false);
 
   const saveAttempt = useCallback(async () => {
-    console.log("🎯 saveAttempt called");
-    console.log("Quiz ID:", quizId);
-    console.log("Save attempted ref:", saveAttempted.current);
-
-    if (saveAttempted.current || !quizId) {
-      console.log("⏭️ Skipping save - already attempted or no quiz ID");
-      return;
-    }
+    if (saveAttempted.current || !quizId) return;
     saveAttempted.current = true;
     setSaving(true);
 
     try {
       const { supabase } = await import('../../../lib/supabase');
       const { data: { user } } = await supabase.auth.getUser();
-      
-      console.log("👤 User:", user?.id);
 
-      if (!user) {
-        console.warn("❌ No user logged in. Skipping attempt save.");
-        return;
-      }
+      if (!user) return;
 
       const answers = results.map((r, i) => ({
         question_index: i,
-        chosen: r.chosen,
-        correct: r.correct,
+        chosen:   r.chosen,
+        correct:  r.correct,
         revealed: r.revealed,
       }));
-
-      console.log("📤 Sending to backend:", {
-        quiz_id: quizId,
-        score: correct,
-        total: total,
-      });
 
       const res = await fetch(`${API_BASE}/api/quiz/attempt`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          quiz_id: quizId,
-          user_id: user.id,
-          score: correct,
-          total: total,
-          answers: answers,
+          quiz_id:          quizId,
+          user_id:          user.id,
+          score:            correct,
+          total:            total,
+          answers:          answers,
           duration_seconds: durationSeconds || 0,
         }),
       });
 
-      const data = await res.json();
-      console.log("📥 Response:", data);
-
-      if (res.ok) {
-        console.log("✅ Saved successfully!");
-        setSaved(true);
-      } else {
-        console.error("❌ Save failed:", data);
-      }
+      if (res.ok) setSaved(true);
     } catch (err) {
       console.error("❌ Failed to save attempt:", err);
     } finally {
@@ -449,28 +539,46 @@ function ResultsScreen({ results, quizId, durationSeconds, onRetry, onNew }) {
     }
   }, [quizId, results, correct, total, durationSeconds]);
 
-  useState(() => {
-    saveAttempt();
-  });
+  // run once on mount
+  useState(() => { saveAttempt(); });
 
   const headline =
     pct >= 90 ? "🏆 Outstanding!" :
-    pct >= 70 ? "🎉 Well done!" :
+    pct >= 70 ? "🎉 Well done!"   :
     pct >= 50 ? "👍 Good effort!" :
-    "📚 Keep studying!";
+                "📚 Keep studying!";
 
   const scoreColor = pct >= 70 ? "#16a34a" : pct >= 50 ? "#f59e0b" : "#8B1515";
+  const diffStyle  = DIFF_STYLES[difficulty] || DIFF_STYLES.medium;
 
   return (
     <div className="qm-container">
       <div className="qm-panel">
+
         <div className="qm-header">
           <span className="qm-title">Quiz Results</span>
-          <span className="qm-status">
-            {pct}% score
-            {saving && " · Saving..."}
-            {saved && " · ✓ Saved"}
-          </span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Difficulty badge */}
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '600',
+              padding: '2px 8px',
+              borderRadius: '999px',
+              color: diffStyle.color,
+              background: diffStyle.bg,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}>
+              {diffStyle.label}
+            </span>
+
+            <span className="qm-status">
+              {pct}% score
+              {saving && " · Saving..."}
+              {saved  && " · ✓ Saved"}
+            </span>
+          </div>
         </div>
 
         <div className="qm-body">
@@ -490,10 +598,7 @@ function ResultsScreen({ results, quizId, durationSeconds, onRetry, onNew }) {
             <div className="qm-score-track">
               <div
                 className="qm-score-fill"
-                style={{
-                  width: `${pct}%`,
-                  background: scoreColor,
-                }}
+                style={{ width: `${pct}%`, background: scoreColor }}
               />
             </div>
           </div>
@@ -537,8 +642,9 @@ function ResultsScreen({ results, quizId, durationSeconds, onRetry, onNew }) {
 
         <div className="qm-footer">
           <button className="qm-btn-secondary" onClick={onNew}>New Quiz</button>
-          <button className="qm-btn-primary" onClick={onRetry}>Retry</button>
+          <button className="qm-btn-primary"   onClick={onRetry}>Retry</button>
         </div>
+
       </div>
     </div>
   );
@@ -546,16 +652,18 @@ function ResultsScreen({ results, quizId, durationSeconds, onRetry, onNew }) {
 
 // ── ROOT ──
 function QuizMaker() {
-  const [screen, setScreen] = useState("setup");
-  const [questions, setQuestions] = useState([]);
-  const [results, setResults] = useState([]);
-  const [quizId, setQuizId] = useState(null);
-  const [startTime, setStartTime] = useState(null);
+  const [screen, setScreen]           = useState("setup");
+  const [questions, setQuestions]     = useState([]);
+  const [results, setResults]         = useState([]);
+  const [quizId, setQuizId]           = useState(null);
+  const [difficulty, setDifficulty]   = useState("medium"); // ← single source of truth
+  const [startTime, setStartTime]     = useState(null);
   const [durationSeconds, setDurationSeconds] = useState(0);
 
-  const handleGenerate = useCallback((qs, id) => {
+  const handleGenerate = useCallback((qs, id, diff) => {
     setQuestions(qs);
     setQuizId(id);
+    setDifficulty(diff || "medium"); // ← store what the API confirmed
     setStartTime(Date.now());
     setScreen("quiz");
   }, []);
@@ -569,18 +677,24 @@ function QuizMaker() {
 
   return (
     <div className="qm-wrapper">
-      {screen === "setup" && <SetupScreen onGenerate={handleGenerate} />}
+      {screen === "setup" && (
+        <SetupScreen onGenerate={handleGenerate} />
+      )}
+
       {screen === "quiz" && (
         <QuizScreen
           key={JSON.stringify(questions)}
           questions={questions}
+          difficulty={difficulty}
           onFinish={handleFinish}
         />
       )}
+
       {screen === "results" && (
         <ResultsScreen
           results={results}
           quizId={quizId}
+          difficulty={difficulty}
           durationSeconds={durationSeconds}
           onRetry={() => {
             setStartTime(Date.now());
@@ -590,6 +704,7 @@ function QuizMaker() {
             setQuestions([]);
             setResults([]);
             setQuizId(null);
+            setDifficulty("medium");
             setScreen("setup");
           }}
         />
